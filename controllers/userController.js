@@ -43,6 +43,10 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
 
+    if (user.provider === "google") {
+      return res.status(400).json({ error: "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google Login." });
+    }
+
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
 
@@ -64,6 +68,7 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: "Lỗi server" });
   }
 };
+
 
 // Lấy thông tin profile người dùng
 exports.getProfile = async (req, res) => {
