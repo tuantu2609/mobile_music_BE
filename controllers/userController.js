@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { EmailOtp } = require("../models");
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -140,5 +142,52 @@ exports.sendOtp = async (req, res) => {
     await EmailOtp.destroy({ where: { email } });
   
     res.json({ success: true });
+  };
+  
+  // Đăng nhập bằng Google
+  exports.loginGoogle = async (req, res) => {
+    const { idToken } = req.body;
+  
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+  
+      const payload = ticket.getPayload();
+      const { email, name } = payload;
+  
+      if (!email) {
+        return res.status(400).json({ error: "Không nhận được email từ Google" });
+      }
+  
+      let user = await User.findOne({ where: { email } });
+  
+      if (!user) {
+        user = await User.create({
+          name: name || "No Name",
+          email,
+          password: "google-auth",
+          provider: "google",
+        });
+      }
+  
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+        expiresIn: "7d",
+      });
+  
+      res.json({
+        message: "Đăng nhập Google thành công",
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
+      });
+    } catch (err) {
+      console.error("Google login failed:", err); // 👈 log thật rõ
+      res.status(500).json({ error: "Đăng nhập Google thất bại", detail: err.message });
+    }
   };
   

@@ -12,6 +12,7 @@ router.get("/profile", validateToken, userController.getProfile);
 
 router.post("/send-otp", userController.sendOtp);
 router.post("/verify-otp", userController.verifyOtp);
+router.post("/login-google", userController.loginGoogle);
 
 
 module.exports = router;
