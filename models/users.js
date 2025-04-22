@@ -37,6 +37,30 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true,
     }
   );
+  
+  User.associate = (models) => {
+    User.belongsToMany(models.Song, {
+      through: models.UserLikedSong,
+      foreignKey: "user_id",
+      as: "likedSongs",
+    });
+    User.belongsToMany(models.Playlist, {
+      through: models.UserLikedPlaylist,
+      foreignKey: "user_id",
+      as: "likedPlaylists",
+    });
+    User.belongsToMany(models.Artist, {
+      through: models.UserFollowedArtist,
+      foreignKey: "user_id",
+      as: "followedArtists",
+    });
+    User.belongsToMany(models.Song, {
+      through: models.UserDownloadedSong,
+      foreignKey: "user_id",
+      as: "downloadedSongs",
+    });
+    
+  };
 
   return User;
 };
