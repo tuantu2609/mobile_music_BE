@@ -4,6 +4,8 @@ require("dotenv").config();
 const cors = require("cors");
 app.use(cors());
 
+app.use("/avatars", express.static("public/avatars"));
+
 // Middleware cho JSON
 app.use(express.json());
 

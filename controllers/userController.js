@@ -19,7 +19,7 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, password: hashedPassword, phone });
+    const user = await User.create({ name, email, password: hashedPassword, phone, avatar: "/avatars/avatar.jpg" });
 
     res.status(201).json({
       message: "Tạo tài khoản thành công",
@@ -362,6 +362,121 @@ exports.getDownloadedSongs = async (req, res) => {
     res.json(user.downloadedSongs);
   } catch (error) {
     console.error("❌ Lỗi lấy downloaded songs:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+exports.sendResetOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Thiếu email" });
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) return res.status(404).json({ error: "Không tìm thấy tài khoản với email này" });
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expires = new Date(Date.now() + 5 * 60 * 1000); // OTP hết hạn sau 5 phút
+
+  try {
+    await EmailOtp.upsert({ email, otp, expires_at: expires });
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USERNAME,
+        pass: process.env.MAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.MAIL_USERNAME,
+      to: email,
+      subject: "Khôi phục mật khẩu",
+      text: `Mã OTP đặt lại mật khẩu của bạn là: ${otp}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "OTP khôi phục mật khẩu đã được gửi" });
+  } catch (err) {
+    console.error("❌ Lỗi gửi OTP reset password:", err);
+    res.status(500).json({ error: "Gửi email thất bại" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: "Thiếu thông tin" });
+  }
+
+  const record = await EmailOtp.findOne({ where: { email } });
+  if (!record) return res.status(400).json({ error: "Không tìm thấy OTP" });
+
+  if (record.otp !== otp || new Date() > record.expires_at) {
+    return res.status(400).json({ error: "OTP sai hoặc hết hạn" });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.update({ password: hashedPassword }, { where: { email } });
+
+    // ✅ Xoá OTP chỉ khi thành công
+    await EmailOtp.destroy({ where: { email } });
+
+    res.json({ message: "Đặt lại mật khẩu thành công" });
+  } catch (error) {
+    console.error("❌ Lỗi reset mật khẩu:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+
+//otp for reset pass
+exports.verifyOtpReset = async (req, res) => {
+  const { email, otp } = req.body;
+
+  const record = await EmailOtp.findOne({ where: { email } });
+  if (!record) return res.status(400).json({ success: false, message: "Không tìm thấy OTP" });
+
+  const now = new Date();
+  if (record.otp !== otp || now > record.expires_at) {
+    return res.status(400).json({ success: false, message: "OTP sai hoặc hết hạn" });
+  }
+
+  res.json({ success: true });
+};
+
+//update profile
+exports.updateProfile = async (req, res) => {
+  const userId = req.user.id;
+  const { name, phone } = req.body;
+  let avatarPath = null;
+
+  if (req.file) {
+    avatarPath = `/avatars/${req.file.filename}`;
+  }
+
+  try {
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (avatarPath) updateData.avatar = avatarPath;
+
+    await User.update(updateData, { where: { id: userId } });
+
+    const updatedUser = await User.findByPk(userId);
+
+    res.json({
+      message: "Cập nhật thông tin thành công",
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        avatar: updatedUser.avatar,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Lỗi update profile:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 };

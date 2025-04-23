@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
 const { validateToken } = require("../middlewares/AuthMiddleware");
+const upload = require("../middlewares/uploadAvatar");
 
 // Public routes
 router.post("/register", userController.register);
@@ -13,6 +14,17 @@ router.get("/profile", validateToken, userController.getProfile);
 router.post("/send-otp", userController.sendOtp);
 router.post("/verify-otp", userController.verifyOtp);
 router.post("/login-google", userController.loginGoogle);
+router.post("/send-reset-otp", userController.sendResetOtp);
+router.post("/verify-reset-otp", userController.verifyOtpReset);
+router.post("/reset-password", userController.resetPassword);
+
+router.put(
+    "/update-profile",
+    validateToken,
+    upload.single("avatar"),
+    userController.updateProfile
+);
+
 
 // Like/unlike songs
 router.post("/like-song", validateToken, userController.likeSong);
