@@ -4,6 +4,8 @@ require("dotenv").config();
 const cors = require("cors");
 app.use(cors());
 
+app.use("/avatars", express.static("public/avatars"));
+
 app.use(express.json());
 
 const { swaggerUi, swaggerSpec } = require("./swagger");
