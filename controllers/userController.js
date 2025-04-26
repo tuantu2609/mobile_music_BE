@@ -1,9 +1,18 @@
-const { User, UserLikedSong, UserLikedPlaylist, UserFollowedArtist, Song, Playlist, Artist, UserDownloadedSong } = require("../models");
+const {
+  User,
+  UserLikedSong,
+  UserLikedPlaylist,
+  UserFollowedArtist,
+  Song,
+  Playlist,
+  Artist,
+  UserDownloadedSong,
+} = require("../models");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { EmailOtp } = require("../models");
-const { OAuth2Client } = require('google-auth-library');
+const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const streamifier = require("streamifier");
 const cloudinary = require("cloudinary").v2;
@@ -27,7 +36,9 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await User.create({ name, email, password: hashedPassword, phone, avatar: "/avatars/avatar.jpg" });
+
 
     res.status(201).json({
       message: "Tạo tài khoản thành công",
@@ -49,14 +60,21 @@ exports.login = async (req, res) => {
 
   try {
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
+    if (!user)
+      return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
 
     if (user.provider === "google") {
-      return res.status(400).json({ error: "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google Login." });
+      return res
+        .status(400)
+        .json({
+          error:
+            "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google Login.",
+        });
     }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
+    if (!valid)
+      return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
       expiresIn: "7d",
@@ -77,14 +95,14 @@ exports.login = async (req, res) => {
   }
 };
 
-
 // Lấy thông tin profile người dùng
 exports.getProfile = async (req, res) => {
   try {
     const { id, email } = req.user;
     const user = await User.findOne({ where: { id, email } });
 
-    if (!user) return res.status(404).json({ error: "Không tìm thấy người dùng" });
+    if (!user)
+      return res.status(404).json({ error: "Không tìm thấy người dùng" });
 
     res.json({
       id: user.id,
@@ -139,17 +157,21 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
-
 exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
 
   const record = await EmailOtp.findOne({ where: { email } });
 
-  if (!record) return res.status(400).json({ success: false, message: "Không tìm thấy OTP" });
+  if (!record)
+    return res
+      .status(400)
+      .json({ success: false, message: "Không tìm thấy OTP" });
 
   const now = new Date();
   if (record.otp !== otp || now > record.expires_at) {
-    return res.status(400).json({ success: false, message: "OTP sai hoặc hết hạn" });
+    return res
+      .status(400)
+      .json({ success: false, message: "OTP sai hoặc hết hạn" });
   }
 
   // Option: Xoá OTP sau khi dùng
@@ -201,7 +223,9 @@ exports.loginGoogle = async (req, res) => {
     });
   } catch (err) {
     console.error("Google login failed:", err); // 👈 log thật rõ
-    res.status(500).json({ error: "Đăng nhập Google thất bại", detail: err.message });
+    res
+      .status(500)
+      .json({ error: "Đăng nhập Google thất bại", detail: err.message });
   }
 };
 
@@ -227,7 +251,9 @@ exports.unlikeSong = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserLikedSong.destroy({ where: { user_id: userId, song_id: songId } });
+    await UserLikedSong.destroy({
+      where: { user_id: userId, song_id: songId },
+    });
     res.json({ success: true, message: "Đã bỏ like bài hát" });
   } catch (error) {
     console.error("❌ Lỗi unlike bài hát:", error);
@@ -257,7 +283,9 @@ exports.unlikePlaylist = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserLikedPlaylist.destroy({ where: { user_id: userId, playlist_id: playlistId } });
+    await UserLikedPlaylist.destroy({
+      where: { user_id: userId, playlist_id: playlistId },
+    });
     res.json({ success: true, message: "Đã bỏ like playlist" });
   } catch (error) {
     console.error("❌ Lỗi unlike playlist:", error);
@@ -287,7 +315,9 @@ exports.unfollowArtist = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserFollowedArtist.destroy({ where: { user_id: userId, artist_id: artistId } });
+    await UserFollowedArtist.destroy({
+      where: { user_id: userId, artist_id: artistId },
+    });
     res.json({ success: true, message: "Đã unfollow artist" });
   } catch (error) {
     console.error("❌ Lỗi unfollow artist:", error);
@@ -542,4 +572,3 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: "Lỗi server" });
   }
 };
-
