@@ -4,26 +4,23 @@ require("dotenv").config();
 const cors = require("cors");
 app.use(cors());
 
-// Middleware cho JSON
 app.use(express.json());
 
-// Swagger Docs
 const { swaggerUi, swaggerSpec } = require("./swagger");
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// ROUTES
 const songRoutes = require("./routes/songRoutes");
 const userRoutes = require("./routes/userRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 app.use("/api/songs", songRoutes);
-app.use("/api/users", userRoutes); // <-- Thêm user route
+app.use("/api/users", userRoutes);
+app.use("/auth", authRoutes);
 
-// TEST default route
 app.get("/", (req, res) => {
   res.send("Music API Server is running!");
 });
 
-// DB
 const db = require("./models");
 
 const PORT = process.env.PORT || 8080;
