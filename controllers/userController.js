@@ -5,6 +5,14 @@ const nodemailer = require("nodemailer");
 const { EmailOtp } = require("../models");
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const streamifier = require("streamifier");
+const cloudinary = require("cloudinary").v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -19,7 +27,7 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, password: hashedPassword, phone });
+    const user = await User.create({ name, email, password: hashedPassword, phone, avatar: "/avatars/avatar.jpg" });
 
     res.status(201).json({
       message: "Tạo tài khoản thành công",
@@ -83,6 +91,7 @@ exports.getProfile = async (req, res) => {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      avatar: user.avatar,
     });
   } catch (err) {
     res.status(500).json({ error: "Lỗi server" });
@@ -362,6 +371,174 @@ exports.getDownloadedSongs = async (req, res) => {
     res.json(user.downloadedSongs);
   } catch (error) {
     console.error("❌ Lỗi lấy downloaded songs:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+exports.sendResetOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Thiếu email" });
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) return res.status(404).json({ error: "Không tìm thấy tài khoản với email này" });
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expires = new Date(Date.now() + 5 * 60 * 1000); // OTP hết hạn sau 5 phút
+
+  try {
+    await EmailOtp.upsert({ email, otp, expires_at: expires });
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USERNAME,
+        pass: process.env.MAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.MAIL_USERNAME,
+      to: email,
+      subject: "Khôi phục mật khẩu",
+      text: `Mã OTP đặt lại mật khẩu của bạn là: ${otp}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "OTP khôi phục mật khẩu đã được gửi" });
+  } catch (err) {
+    console.error("❌ Lỗi gửi OTP reset password:", err);
+    res.status(500).json({ error: "Gửi email thất bại" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: "Thiếu thông tin" });
+  }
+
+  const record = await EmailOtp.findOne({ where: { email } });
+  if (!record) return res.status(400).json({ error: "Không tìm thấy OTP" });
+
+  if (record.otp !== otp || new Date() > record.expires_at) {
+    return res.status(400).json({ error: "OTP sai hoặc hết hạn" });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.update({ password: hashedPassword }, { where: { email } });
+
+    // ✅ Xoá OTP chỉ khi thành công
+    await EmailOtp.destroy({ where: { email } });
+
+    res.json({ message: "Đặt lại mật khẩu thành công" });
+  } catch (error) {
+    console.error("❌ Lỗi reset mật khẩu:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+//otp for reset pass
+exports.verifyOtpReset = async (req, res) => {
+  const { email, otp } = req.body;
+
+  const record = await EmailOtp.findOne({ where: { email } });
+  if (!record) return res.status(400).json({ success: false, message: "Không tìm thấy OTP" });
+
+  const now = new Date();
+  if (record.otp !== otp || now > record.expires_at) {
+    return res.status(400).json({ success: false, message: "OTP sai hoặc hết hạn" });
+  }
+
+  res.json({ success: true });
+};
+
+//update profile
+exports.updateProfile = async (req, res) => {
+  const userId = req.user.id;
+  const {
+    name,
+    phone,
+    email, // email mới nếu thay đổi
+    otp,   // OTP nếu đổi email
+    oldPassword,
+    newPassword,
+  } = req.body;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Không tìm thấy người dùng" });
+    }
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+
+    // 📧 Nếu muốn đổi email
+    if (email && email !== user.email) {
+      if (!otp) return res.status(400).json({ error: "Thiếu OTP để xác minh email mới" });
+      const record = await EmailOtp.findOne({ where: { email } });
+      if (!record || record.otp !== otp || new Date() > record.expires_at) {
+        return res.status(400).json({ error: "OTP sai hoặc hết hạn" });
+      }
+      updateData.email = email;
+      await EmailOtp.destroy({ where: { email } }); // Xóa OTP sau khi dùng
+    }
+
+    // 🔐 Nếu muốn đổi mật khẩu
+    if (newPassword) {
+      if (!oldPassword) {
+        return res.status(400).json({ error: "Thiếu mật khẩu hiện tại" });
+      }
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ error: "Mật khẩu hiện tại không đúng" });
+      }
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      updateData.password = hashedNewPassword;
+    }
+
+    // 🖼️ Nếu đổi ảnh đại diện (Cloudinary upload)
+    if (req.file) {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: "avatars" },
+        async (error, result) => {
+          if (error) {
+            console.error("❌ Lỗi upload ảnh:", error);
+            return res.status(500).json({ error: "Upload ảnh thất bại" });
+          }
+          updateData.avatar = result.secure_url;
+          await user.update(updateData);
+          return res.json({
+            message: "Cập nhật thành công",
+            user: {
+              id: user.id,
+              name: user.name,
+              phone: user.phone,
+              email: user.email,
+              avatar: result.secure_url,
+            },
+          });
+        }
+      );
+      streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    } else {
+      await user.update(updateData);
+      return res.json({
+        message: "Cập nhật thành công",
+        user: {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          email: user.email,
+          avatar: user.avatar,
+        },
+      });
+    }
+  } catch (error) {
+    console.error("❌ Lỗi update profile:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 };

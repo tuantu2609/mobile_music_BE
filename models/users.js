@@ -31,13 +31,17 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: "local", // "local" hoặc "google"
       },
+      avatar: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: "users",
       timestamps: true,
     }
   );
-  
+
   User.associate = (models) => {
     User.belongsToMany(models.Song, {
       through: models.UserLikedSong,
@@ -59,7 +63,7 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "user_id",
       as: "downloadedSongs",
     });
-    
+
   };
 
   return User;
