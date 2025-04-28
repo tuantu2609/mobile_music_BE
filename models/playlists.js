@@ -8,6 +8,10 @@ module.exports = (sequelize, DataTypes) => {
       creatorName: DataTypes.STRING,
       total_tracks: DataTypes.INTEGER,
       external_url: DataTypes.TEXT,
+      image: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       tableName: "playlists",

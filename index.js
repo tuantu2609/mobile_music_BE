@@ -14,8 +14,14 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 const songRoutes = require("./routes/songRoutes");
 const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
+const playRoutes = require("./routes/playRoutes");
+const playlistRoutes = require("./routes/playlistRoutes");
+const albumRoutes = require("./routes/albumRoutes");
 
-app.use("/api/songs", songRoutes);
+app.use("/albums", albumRoutes);
+app.use("/api/playlists", playlistRoutes);
+app.use("/api/plays", playRoutes);
+app.use("/songs", songRoutes);
 app.use("/api/users", userRoutes);
 app.use("/auth", authRoutes);
 

@@ -37,8 +37,13 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({ name, email, password: hashedPassword, phone, avatar: "/avatars/avatar.jpg" });
-
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      avatar: "/avatars/avatar.jpg",
+    });
 
     res.status(201).json({
       message: "Tạo tài khoản thành công",
@@ -64,12 +69,10 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
 
     if (user.provider === "google") {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google Login.",
-        });
+      return res.status(400).json({
+        error:
+          "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google Login.",
+      });
     }
 
     const valid = await bcrypt.compare(password, user.password);
@@ -410,7 +413,10 @@ exports.sendResetOtp = async (req, res) => {
   if (!email) return res.status(400).json({ error: "Thiếu email" });
 
   const user = await User.findOne({ where: { email } });
-  if (!user) return res.status(404).json({ error: "Không tìm thấy tài khoản với email này" });
+  if (!user)
+    return res
+      .status(404)
+      .json({ error: "Không tìm thấy tài khoản với email này" });
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const expires = new Date(Date.now() + 5 * 60 * 1000); // OTP hết hạn sau 5 phút
@@ -474,11 +480,16 @@ exports.verifyOtpReset = async (req, res) => {
   const { email, otp } = req.body;
 
   const record = await EmailOtp.findOne({ where: { email } });
-  if (!record) return res.status(400).json({ success: false, message: "Không tìm thấy OTP" });
+  if (!record)
+    return res
+      .status(400)
+      .json({ success: false, message: "Không tìm thấy OTP" });
 
   const now = new Date();
   if (record.otp !== otp || now > record.expires_at) {
-    return res.status(400).json({ success: false, message: "OTP sai hoặc hết hạn" });
+    return res
+      .status(400)
+      .json({ success: false, message: "OTP sai hoặc hết hạn" });
   }
 
   res.json({ success: true });
@@ -491,7 +502,7 @@ exports.updateProfile = async (req, res) => {
     name,
     phone,
     email, // email mới nếu thay đổi
-    otp,   // OTP nếu đổi email
+    otp, // OTP nếu đổi email
     oldPassword,
     newPassword,
   } = req.body;
@@ -508,7 +519,10 @@ exports.updateProfile = async (req, res) => {
 
     // 📧 Nếu muốn đổi email
     if (email && email !== user.email) {
-      if (!otp) return res.status(400).json({ error: "Thiếu OTP để xác minh email mới" });
+      if (!otp)
+        return res
+          .status(400)
+          .json({ error: "Thiếu OTP để xác minh email mới" });
       const record = await EmailOtp.findOne({ where: { email } });
       if (!record || record.otp !== otp || new Date() > record.expires_at) {
         return res.status(400).json({ error: "OTP sai hoặc hết hạn" });

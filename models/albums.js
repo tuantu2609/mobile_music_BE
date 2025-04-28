@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       genres: DataTypes.JSON,
       label: DataTypes.STRING,
       popularity: DataTypes.INTEGER,
-      external_url: DataTypes.TEXT,
+      album_cover: DataTypes.STRING,
     },
     {
       tableName: "albums",
