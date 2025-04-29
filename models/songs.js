@@ -12,6 +12,14 @@ module.exports = (sequelize, DataTypes) => {
       is_playable: DataTypes.BOOLEAN,
       duration_ms: DataTypes.INTEGER,
       album_id: DataTypes.STRING,
+      url: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      lyrics: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       tableName: "songs",
