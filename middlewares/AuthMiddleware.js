@@ -2,18 +2,16 @@ const { verify } = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const validateToken = (req, res, next) => {
-  const accessToken = req.header("accessToken");
+  const token = req.headers["authorization"]?.split(" ")[1];
 
-  if (!accessToken) return res.json({ error: "User not logged in!" });
+  if (!token) return res.status(401).json({ error: "Thiếu token truy cập" });
 
   try {
-    const validToken = verify(accessToken, JWT_SECRET);
+    const validToken = verify(token, JWT_SECRET);
     req.user = validToken;
-    if (validToken) {
-      return next();
-    }
+    next();
   } catch (err) {
-    return res.status(403).json({ error: "Invalid Token!" });
+    return res.status(403).json({ error: "Token không hợp lệ" });
   }
 };
 

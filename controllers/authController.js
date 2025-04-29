@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const USERS = require("../users");
-const SECRET = process.env.JWT_SECRET || "thongngu";
+const SECRET = process.env.JWT_SECRET;
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
