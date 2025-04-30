@@ -3,6 +3,7 @@ const router = express.Router();
 const songController = require("../controllers/songController");
 const multer = require("multer");
 const upload = multer();
+const { validateToken } = require("../middlewares/AuthMiddleware");
 
 /**
  * @swagger
@@ -20,13 +21,16 @@ const upload = multer();
  *               items:
  *                 type: object
  */
-router.get("/", songController.getAllSongs);
+router.get("/",validateToken, songController.getAllSongs);
 
-router.get("/new-releases", songController.getNewReleases);
+router.get("/new-releases",validateToken, songController.getNewReleases);
 
-router.get("/:id", songController.getSongById);
+router.get("/:id",validateToken, songController.getSongById);
 
-router.get("/:id/next", songController.getNextSongs);
+router.get("/:id/next",validateToken, songController.getNextSongs);
+
+// Lấy tổng số lượt like của bài hát
+router.get("/:songId/total-likes",validateToken, songController.getTotalLikesOfSong);
 
 router.post("/upload", upload.single("songFile"), songController.uploadSong);
 module.exports = router;

@@ -211,15 +211,29 @@ exports.likeSong = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserLikedSong.findOrCreate({
+    const [newLikedSong, created] = await UserLikedSong.findOrCreate({
       where: { user_id: userId, song_id: songId },
     });
-    res.json({ success: true, message: "Đã like bài hát" });
+
+    if (!created) {
+      return res.status(400).json({
+        success: false,
+        message: "Bài hát đã được like trước đó",
+        isLiked: true,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Đã like bài hát",
+      isLiked: true,
+    });
   } catch (error) {
-    console.error("❌ Lỗi like bài hát:", error);
+    console.error("Lỗi like bài hát:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 };
+
 
 // Unlike Song
 exports.unlikeSong = async (req, res) => {
@@ -227,10 +241,17 @@ exports.unlikeSong = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserLikedSong.destroy({ where: { user_id: userId, song_id: songId } });
+    const rowsDeleted = await UserLikedSong.destroy({
+      where: { user_id: userId, song_id: songId },
+    });
+
+    if (rowsDeleted === 0) {
+      return res.status(400).json({ error: "Bài hát chưa được like" });
+    }
+
     res.json({ success: true, message: "Đã bỏ like bài hát" });
   } catch (error) {
-    console.error("❌ Lỗi unlike bài hát:", error);
+    console.error("Lỗi unlike bài hát:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 };
@@ -295,21 +316,21 @@ exports.unfollowArtist = async (req, res) => {
   }
 };
 
-// Get all liked songs
-exports.getLikedSongs = async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id, {
-      include: {
-        model: Song,
-        as: "likedSongs",
-      },
-    });
-    res.json(user.likedSongs);
-  } catch (error) {
-    console.error("❌ Lỗi lấy liked songs:", error);
-    res.status(500).json({ error: "Lỗi server" });
-  }
-};
+// // Get all liked songs
+// exports.getLikedSongs = async (req, res) => {
+//   try {
+//     const user = await User.findByPk(req.user.id, {
+//       include: {
+//         model: Song,
+//         as: "likedSongs",
+//       },
+//     });
+//     res.json(user.likedSongs);
+//   } catch (error) {
+//     console.error("❌ Lỗi lấy liked songs:", error);
+//     res.status(500).json({ error: "Lỗi server" });
+//   }
+// };
 
 // Get all liked playlists
 exports.getLikedPlaylists = async (req, res) => {
@@ -542,3 +563,44 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: "Lỗi server" });
   }
 };
+
+// Lấy danh sách bài hát đã like của người dùng
+exports.getUserLikedSongs = async (req, res) => {
+  const userId = req.params.userId;  // Lấy userId từ tham số URL
+  const limit = parseInt(req.query.limit) || 10;  // Mặc định lấy 10 bài
+  const offset = parseInt(req.query.offset) || 0;  // Mặc định bắt đầu từ bài đầu tiên
+
+  try {
+    const likedSongs = await UserLikedSong.findAll({
+      where: { user_id: userId },
+      include: [
+        {
+          model: Song,
+          as: "song",  // Sử dụng alias đã đặt
+          attributes: ["id", "title", "album_cover"],
+          include: [
+            {
+              model: Artist,  // Include the Artist model
+              attributes: ["id", "name"],  // Ensure only required attributes are included
+            },
+          ],
+        },
+      ],
+      limit: limit,
+      offset: offset,
+    });
+
+    if (!likedSongs || likedSongs.length === 0) {
+      return res.status(404).json({ message: "Không có bài hát nào đã like" });
+    }
+
+    res.status(200).json(likedSongs); // Trả về danh sách bài hát đã thích
+  } catch (error) {
+    console.error("Lỗi lấy danh sách bài hát đã like:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+
+
+
