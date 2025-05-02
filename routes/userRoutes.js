@@ -44,8 +44,13 @@ router.get("/:userId/liked-songs", validateToken, userController.getUserLikedSon
 router.get("/:userId/liked-playlists", validateToken, userController.getLikedPlaylists);
 router.get("/:userId/followed-artists", validateToken, userController.getFollowedArtists);
 
-router.post("/download-song", validateToken, userController.downloadSong);
-router.get("/downloaded-songs", validateToken, userController.getDownloadedSongs);
+// router.post("/download-song", validateToken, userController.downloadSong);
+router.post("/:userId/download-song", validateToken, userController.downloadSong);
+// router.get("/downloaded-songs", validateToken, userController.getDownloadedSongs);
+router.get("/:userId/downloaded-songs", validateToken, userController.getDownloadedSongs);
+
+router.delete("/download-song/:songId", validateToken, userController.deleteDownloadedSong);
+
 
 
 module.exports = router;

@@ -42,6 +42,11 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "song_id",
       as: "userLikedSongs", // Đặt alias để dễ dàng truy vấn
     });
+    Song.belongsToMany(models.User, {
+      through: models.UserDownloadedSong,
+      foreignKey: "song_id",
+    });
+    
   };
 
   return Song;
