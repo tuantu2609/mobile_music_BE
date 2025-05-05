@@ -98,19 +98,21 @@ const getSongById = async (req, res) => {
 
 const getNextSongs = async (req, res) => {
   const { id } = req.params;
+  const { limit = 1, exclude = "" } = req.query;
+
   try {
-    const songs = await Song.findAll({
-      limit: 50,
-      order: [["popularity", "DESC"]],
-    });
+    const excludeIds = exclude.split(",").concat(id);
 
-    const index = songs.findIndex((song) => song.id === id);
+    const songs = await Song.findAll(); // không cần order theo popularity
 
-    if (index === -1) {
-      return res.status(404).json({ error: "Song not found in list" });
-    }
+    // Lọc bài không nằm trong exclude
+    const filtered = songs.filter((song) => !excludeIds.includes(song.id));
 
-    const nextSongs = songs.slice(index + 1, index + 6);
+    // Xáo trộn ngẫu nhiên
+    const shuffled = filtered.sort(() => Math.random() - 0.5);
+
+    // Trả về số lượng cần
+    const nextSongs = shuffled.slice(0, Number(limit));
 
     res.json(nextSongs);
   } catch (error) {
@@ -118,7 +120,6 @@ const getNextSongs = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-
 const uploadSong = async (req, res) => {
   try {
     // Kiểm tra nếu không có file thì trả lỗi
