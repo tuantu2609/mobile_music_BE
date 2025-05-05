@@ -1,4 +1,4 @@
-const { Song, Artist, Album } = require("../models");
+const { Song, Artist, Album, UserLikedSong  } = require("../models");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const { Op } = require("sequelize");
@@ -65,8 +65,40 @@ const getNewReleases = async (req, res) => {
   }
 };
 
+// const getSongById = async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     const song = await Song.findByPk(id, {
+//       include: [
+//         {
+//           model: Artist,
+//           attributes: ["id", "name"],
+//           through: { attributes: [] },
+//           required: false,
+//         },
+//         {
+//           model: Album,
+//           attributes: ["id", "name", "release_date"],
+//           required: false,
+//         },
+//       ],
+//     });
+
+//     if (!song) {
+//       return res.status(404).json({ error: "Song Not found" });
+//     }
+
+//     res.json(song);
+//   } catch (error) {
+//     console.error("Error fetch song detail:", error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// };
+
 const getSongById = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user?.id; // Giả định đã có middleware decode token
 
   try {
     const song = await Song.findByPk(id, {
@@ -86,12 +118,27 @@ const getSongById = async (req, res) => {
     });
 
     if (!song) {
-      return res.status(404).json({ error: "Song Not found" });
+      return res.status(404).json({ error: "Song not found" });
     }
 
-    res.json(song);
+    let isLiked = false;
+
+    if (userId) {
+      const liked = await UserLikedSong.findOne({
+        where: {
+          user_id: userId,
+          song_id: id,
+        },
+      });
+      isLiked = !!liked;
+    }
+
+    const songData = song.toJSON();
+    songData.isLiked = isLiked;
+
+    res.json(songData);
   } catch (error) {
-    console.error("Error fetch song detail:", error);
+    console.error("Error fetching song detail:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -220,10 +267,27 @@ const uploadSong = async (req, res) => {
   }
 };
 
+// Đếm tổng lượt like của một bài hát
+const getTotalLikesOfSong = async (req, res) => {
+  const { songId } = req.params;
+
+  try {
+    const likeCount = await UserLikedSong.count({
+      where: { song_id: songId },
+    });
+
+    res.json({ songId, likeCount });
+  } catch (error) {
+    console.error("Lỗi đếm lượt like bài hát:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
 module.exports = {
   getAllSongs,
   getNewReleases,
   getSongById,
   getNextSongs,
   uploadSong,
+  getTotalLikesOfSong,
 };

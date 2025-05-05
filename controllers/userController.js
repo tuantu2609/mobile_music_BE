@@ -211,15 +211,29 @@ exports.likeSong = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserLikedSong.findOrCreate({
+    const [newLikedSong, created] = await UserLikedSong.findOrCreate({
       where: { user_id: userId, song_id: songId },
     });
-    res.json({ success: true, message: "Đã like bài hát" });
+
+    if (!created) {
+      return res.status(400).json({
+        success: false,
+        message: "Bài hát đã được like trước đó",
+        isLiked: true,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Đã like bài hát",
+      isLiked: true,
+    });
   } catch (error) {
-    console.error("❌ Lỗi like bài hát:", error);
+    console.error("Lỗi like bài hát:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 };
+
 
 // Unlike Song
 exports.unlikeSong = async (req, res) => {
@@ -227,10 +241,17 @@ exports.unlikeSong = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    await UserLikedSong.destroy({ where: { user_id: userId, song_id: songId } });
+    const rowsDeleted = await UserLikedSong.destroy({
+      where: { user_id: userId, song_id: songId },
+    });
+
+    if (rowsDeleted === 0) {
+      return res.status(400).json({ error: "Bài hát chưa được like" });
+    }
+
     res.json({ success: true, message: "Đã bỏ like bài hát" });
   } catch (error) {
-    console.error("❌ Lỗi unlike bài hát:", error);
+    console.error("Lỗi unlike bài hát:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 };
@@ -295,21 +316,21 @@ exports.unfollowArtist = async (req, res) => {
   }
 };
 
-// Get all liked songs
-exports.getLikedSongs = async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id, {
-      include: {
-        model: Song,
-        as: "likedSongs",
-      },
-    });
-    res.json(user.likedSongs);
-  } catch (error) {
-    console.error("❌ Lỗi lấy liked songs:", error);
-    res.status(500).json({ error: "Lỗi server" });
-  }
-};
+// // Get all liked songs
+// exports.getLikedSongs = async (req, res) => {
+//   try {
+//     const user = await User.findByPk(req.user.id, {
+//       include: {
+//         model: Song,
+//         as: "likedSongs",
+//       },
+//     });
+//     res.json(user.likedSongs);
+//   } catch (error) {
+//     console.error("❌ Lỗi lấy liked songs:", error);
+//     res.status(500).json({ error: "Lỗi server" });
+//   }
+// };
 
 // Get all liked playlists
 exports.getLikedPlaylists = async (req, res) => {
@@ -345,13 +366,33 @@ exports.getFollowedArtists = async (req, res) => {
 
 // Download Song
 exports.downloadSong = async (req, res) => {
+  const userIdFromToken = req.user.id;
+  const userIdFromParams = req.params.userId;
+
+  if (userIdFromToken !== userIdFromParams) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
   const { songId } = req.body;
-  const userId = req.user.id;
 
   try {
-    await UserDownloadedSong.findOrCreate({
-      where: { user_id: userId, song_id: songId },
+    const song = await Song.findByPk(songId, {
+      include: [{ model: Artist, through: { attributes: [] } }],
     });
+
+    if (!song) {
+      return res.status(404).json({ error: "Không tìm thấy bài hát" });
+    }
+
+    const artistNames = song.Artists?.map((a) => a.name).join(", ") || null;
+
+    await UserDownloadedSong.upsert({
+      user_id: userIdFromParams,
+      song_id: songId,
+      artist_name: artistNames,
+      album_cover: song.album_cover,
+    });
+
     res.json({ success: true, message: "Đã download bài hát" });
   } catch (error) {
     console.error("❌ Lỗi download bài hát:", error);
@@ -359,21 +400,40 @@ exports.downloadSong = async (req, res) => {
   }
 };
 
+
 // Get all downloaded songs
 exports.getDownloadedSongs = async (req, res) => {
+  const userIdFromToken = req.user.id;
+  const userIdFromParams = req.params.userId;
+
+  if (userIdFromToken !== userIdFromParams) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
   try {
-    const user = await User.findByPk(req.user.id, {
+    const user = await User.findByPk(userIdFromParams, {
       include: {
         model: Song,
         as: "downloadedSongs",
-      },
+        include: [
+          {
+            model: Artist,
+            attributes: ["id", "name"]
+          }
+        ]
+      }
     });
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     res.json(user.downloadedSongs);
   } catch (error) {
-    console.error("❌ Lỗi lấy downloaded songs:", error);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("❌ Error fetching downloaded songs:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };
+
+
 
 exports.sendResetOtp = async (req, res) => {
   const { email } = req.body;
@@ -542,3 +602,60 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: "Lỗi server" });
   }
 };
+
+// Lấy danh sách bài hát đã like của người dùng
+exports.getUserLikedSongs = async (req, res) => {
+  const userIdFromToken = req.user.id;
+  const userIdFromParams = req.params.userId;
+
+  if (userIdFromToken !== userIdFromParams) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  try {
+    const likedSongs = await UserLikedSong.findAll({
+      where: { user_id: userIdFromParams },
+      include: [
+        {
+          model: Song,
+          as: "song",
+          include: [
+            {
+              model: Artist,
+              attributes: ["id", "name"]
+            }
+          ]
+        }
+      ]
+    });
+
+    res.status(200).json(likedSongs);
+  } catch (error) {
+    console.error("❌ Error fetching liked songs:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+exports.deleteDownloadedSong = async (req, res) => {
+  const userId = req.user.id;
+  const { songId } = req.params;
+
+  try {
+    const deleted = await UserDownloadedSong.destroy({
+      where: { user_id: userId, song_id: songId },
+    });
+
+    if (!deleted) return res.status(404).json({ error: "Chưa download bài này" });
+
+    res.json({ success: true, message: "Đã xoá bài hát khỏi danh sách tải" });
+  } catch (error) {
+    console.error("❌ Lỗi xoá download:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+
+
+
+

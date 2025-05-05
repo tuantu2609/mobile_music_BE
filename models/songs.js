@@ -37,6 +37,16 @@ module.exports = (sequelize, DataTypes) => {
       through: models.PlaylistSong,
       foreignKey: "song_id",
     });
+    // Thêm mối quan hệ với UserLikedSong
+    Song.hasMany(models.UserLikedSong, {
+      foreignKey: "song_id",
+      as: "userLikedSongs", // Đặt alias để dễ dàng truy vấn
+    });
+    Song.belongsToMany(models.User, {
+      through: models.UserDownloadedSong,
+      foreignKey: "song_id",
+    });
+    
   };
 
   return Song;

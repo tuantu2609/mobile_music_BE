@@ -39,12 +39,18 @@ router.post("/follow-artist", validateToken, userController.followArtist);
 router.delete("/unfollow-artist", validateToken, userController.unfollowArtist);
 
 // Get liked data
-router.get("/liked-songs", validateToken, userController.getLikedSongs);
-router.get("/liked-playlists", validateToken, userController.getLikedPlaylists);
-router.get("/followed-artists", validateToken, userController.getFollowedArtists);
+router.get("/:userId/liked-songs", validateToken, userController.getUserLikedSongs);
 
-router.post("/download-song", validateToken, userController.downloadSong);
-router.get("/downloaded-songs", validateToken, userController.getDownloadedSongs);
+router.get("/:userId/liked-playlists", validateToken, userController.getLikedPlaylists);
+router.get("/:userId/followed-artists", validateToken, userController.getFollowedArtists);
+
+// router.post("/download-song", validateToken, userController.downloadSong);
+router.post("/:userId/download-song", validateToken, userController.downloadSong);
+// router.get("/downloaded-songs", validateToken, userController.getDownloadedSongs);
+router.get("/:userId/downloaded-songs", validateToken, userController.getDownloadedSongs);
+
+router.delete("/download-song/:songId", validateToken, userController.deleteDownloadedSong);
+
 
 
 module.exports = router;
