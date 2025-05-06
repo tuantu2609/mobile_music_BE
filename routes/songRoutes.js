@@ -21,16 +21,20 @@ const { validateToken } = require("../middlewares/AuthMiddleware");
  *               items:
  *                 type: object
  */
-router.get("/",validateToken, songController.getAllSongs);
+router.get("/", validateToken, songController.getAllSongs);
 
-router.get("/new-releases",validateToken, songController.getNewReleases);
+router.get("/new-releases", validateToken, songController.getNewReleases);
 
-router.get("/:id",validateToken, songController.getSongById);
+router.get("/:id", validateToken, songController.getSongById);
 
-router.get("/:id/next",validateToken, songController.getNextSongs);
+router.get("/:id/next", validateToken, songController.getNextSongs);
 
 // Lấy tổng số lượt like của bài hát
-router.get("/:songId/total-likes",validateToken, songController.getTotalLikesOfSong);
+router.get(
+  "/:songId/total-likes",
+  validateToken,
+  songController.getTotalLikesOfSong
+);
 
 router.post("/upload", upload.single("songFile"), songController.uploadSong);
 module.exports = router;
