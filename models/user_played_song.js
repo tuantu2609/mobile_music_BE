@@ -3,8 +3,7 @@ module.exports = (sequelize, DataTypes) => {
     "UserPlayedSong",
     {
       id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.STRING,
         primaryKey: true,
       },
       user_id: { type: DataTypes.STRING, allowNull: false },

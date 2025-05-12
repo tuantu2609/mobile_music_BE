@@ -1,4 +1,10 @@
-const { Song, Artist, Album, UserLikedSong  } = require("../models");
+const {
+  Song,
+  Artist,
+  Album,
+  UserLikedSong,
+  UserDownloadedSong,
+} = require("../models");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const { Op } = require("sequelize");
@@ -65,40 +71,9 @@ const getNewReleases = async (req, res) => {
   }
 };
 
-// const getSongById = async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const song = await Song.findByPk(id, {
-//       include: [
-//         {
-//           model: Artist,
-//           attributes: ["id", "name"],
-//           through: { attributes: [] },
-//           required: false,
-//         },
-//         {
-//           model: Album,
-//           attributes: ["id", "name", "release_date"],
-//           required: false,
-//         },
-//       ],
-//     });
-
-//     if (!song) {
-//       return res.status(404).json({ error: "Song Not found" });
-//     }
-
-//     res.json(song);
-//   } catch (error) {
-//     console.error("Error fetch song detail:", error);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
-
 const getSongById = async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?.id; // Giả định đã có middleware decode token
+  const userId = req.user?.id || req.user?.userId;
 
   try {
     const song = await Song.findByPk(id, {
@@ -123,11 +98,11 @@ const getSongById = async (req, res) => {
 
     let isLiked = false;
 
-    if (userId) {
+    if (userId && id) {
       const liked = await UserLikedSong.findOne({
         where: {
-          user_id: userId,
-          song_id: id,
+          user_id: String(userId).trim(),
+          song_id: String(id).trim(),
         },
       });
       isLiked = !!liked;
@@ -135,6 +110,16 @@ const getSongById = async (req, res) => {
 
     const songData = song.toJSON();
     songData.isLiked = isLiked;
+
+    let isDownloaded = false;
+    if (userId) {
+      const downloaded = await UserDownloadedSong.findOne({
+        where: { user_id: userId, song_id: id },
+      });
+      isDownloaded = !!downloaded;
+    }
+
+    songData.isDownloaded = isDownloaded;
 
     res.json(songData);
   } catch (error) {
@@ -144,13 +129,25 @@ const getSongById = async (req, res) => {
 };
 
 const getNextSongs = async (req, res) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   const { id } = req.params;
-  const { limit = 1, exclude = "" } = req.query;
+  const { limit = 20, exclude = "" } = req.query;
 
   try {
     const excludeIds = exclude.split(",").concat(id);
 
-    const songs = await Song.findAll(); // không cần order theo popularity
+    // Truy vấn bài hát và lấy thông tin nghệ sĩ liên quan
+    const songs = await Song.findAll({
+      include: {
+        model: Artist,
+        through: { attributes: [] }, // Không cần thông tin từ bảng trung gian SongArtist
+        attributes: ["name"], // Lấy tên nghệ sĩ
+      },
+    });
 
     // Lọc bài không nằm trong exclude
     const filtered = songs.filter((song) => !excludeIds.includes(song.id));
@@ -161,12 +158,26 @@ const getNextSongs = async (req, res) => {
     // Trả về số lượng cần
     const nextSongs = shuffled.slice(0, Number(limit));
 
-    res.json(nextSongs);
+    // Định dạng kết quả để trả về tên nghệ sĩ cùng với bài hát
+    const result = nextSongs.map((song) => {
+      const artists = song.Artists.map((artist) => artist.name).join(", ");
+      return {
+        id: song.id,
+        title: song.title,
+        subtitle: artists,
+        album_cover: song.album_cover,
+        duration_ms: song.duration_ms,
+        url: song.url,
+      };
+    });
+
+    res.json(result);
   } catch (error) {
     console.error("Error fetching next songs:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 const uploadSong = async (req, res) => {
   try {
     // Kiểm tra nếu không có file thì trả lỗi

@@ -3,16 +3,12 @@ module.exports = (sequelize, DataTypes) => {
     "UserLikedSong",
     {
       user_id: {
-        type: DataTypes.UUID,
+        type: DataTypes.STRING,
         primaryKey: true,
       },
       song_id: {
         type: DataTypes.STRING,
         primaryKey: true,
-      },
-      like_count: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0, // default like count to 0
       },
     },
     {
@@ -22,9 +18,16 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   UserLikedSong.associate = (models) => {
+    UserLikedSong.belongsTo(models.User, {
+      foreignKey: "user_id",
+      targetKey: "id",
+      as: "user",
+    });
+
     UserLikedSong.belongsTo(models.Song, {
       foreignKey: "song_id",
-      as: "song", // Alias để sử dụng trong truy vấn
+      targetKey: "id",
+      as: "song",
     });
   };
 

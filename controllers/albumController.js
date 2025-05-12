@@ -59,18 +59,57 @@ const getAllAlbums = async (req, res) => {
         {
           model: Artist,
           attributes: ["id", "name"],
-          through: { attributes: [] }, // bỏ thuộc tính trung gian
+          through: { attributes: [] }, // bỏ bảng trung gian
         },
       ],
       order: [["popularity", "DESC"]],
-      limit: 50, // optional: giới hạn kết quả
+      limit: 50,
     });
 
-    res.json(albums);
+    const formatted = albums.map((album) => {
+      const raw = album.toJSON();
+      return {
+        ...raw,
+        artists: raw.Artists || [],
+      };
+    });
+
+    res.json(formatted);
   } catch (error) {
     console.error("Error fetching albums:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
+// const getAllAlbums = async (req, res) => {
+//   try {
+//     const albums = await Album.findAll({
+//       attributes: [
+//         "id",
+//         "name",
+//         "album_cover",
+//         "release_date",
+//         "album_type",
+//         "total_tracks",
+//         "genres",
+//         "label",
+//         "popularity",
+//       ],
+//       include: [
+//         {
+//           model: Artist,
+//           attributes: ["id", "name"],
+//           through: { attributes: [] }, // bỏ thuộc tính trung gian
+//         },
+//       ],
+//       order: [["popularity", "DESC"]],
+//       limit: 50, // optional: giới hạn kết quả
+//     });
+
+//     res.json(albums);
+//   } catch (error) {
+//     console.error("Error fetching albums:", error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// };
 
 module.exports = { getAlbumDetails, getAllAlbums };

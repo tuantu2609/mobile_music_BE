@@ -3,8 +3,7 @@ module.exports = (sequelize, DataTypes) => {
     "User",
     {
       id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.STRING,
         primaryKey: true,
       },
       name: {
@@ -46,6 +45,7 @@ module.exports = (sequelize, DataTypes) => {
     User.belongsToMany(models.Song, {
       through: models.UserLikedSong,
       foreignKey: "user_id",
+      otherKey: "song_id",
       as: "likedSongs",
     });
     User.belongsToMany(models.Playlist, {
