@@ -17,6 +17,8 @@ const authRoutes = require("./routes/authRoutes");
 const playRoutes = require("./routes/playRoutes");
 const playlistRoutes = require("./routes/playlistRoutes");
 const albumRoutes = require("./routes/albumRoutes");
+const searchRoute = require("./routes/search");
+const artistRoutes = require("./routes/artistRoutes");
 
 app.use("/albums", albumRoutes);
 app.use("/api/playlists", playlistRoutes);
@@ -24,6 +26,8 @@ app.use("/api/plays", playRoutes);
 app.use("/songs", songRoutes);
 app.use("/api/users", userRoutes);
 app.use("/auth", authRoutes);
+app.use("/search", searchRoute);
+app.use("/artists", artistRoutes);
 
 app.get("/", (req, res) => {
   res.send("Music API Server is running!");

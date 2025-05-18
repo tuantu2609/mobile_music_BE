@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
       popularity: DataTypes.INTEGER,
       external_url: DataTypes.TEXT,
       followers: DataTypes.INTEGER,
+      image: DataTypes.TEXT,
     },
     {
       tableName: "artists",
