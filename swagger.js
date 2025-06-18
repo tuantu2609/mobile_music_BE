@@ -11,10 +11,9 @@ const options = {
     components: {
       securitySchemes: {
         accessTokenAuth: {
-          // Thay thế bearerAuth bằng accessTokenAuth
-          type: "apiKey", // Loại authentication là apiKey
-          in: "header", // Token được truyền trong header
-          name: "accessToken", // Tên header
+          type: "apiKey", 
+          in: "header", 
+          name: "accessToken",
           description:
             "Access token to authenticate requests. Use 'accessToken' as the header name.",
         },
@@ -22,11 +21,11 @@ const options = {
     },
     security: [
       {
-        accessTokenAuth: [], // Áp dụng accessTokenAuth cho toàn bộ API
+        accessTokenAuth: [],
       },
     ],
   },
-  apis: ["./routes/*.js"], // Chỉ đường dẫn đến file route chứa Swagger doc
+  apis: ["./routes/*.js"], 
 };
 
 const swaggerSpec = swaggerJsdoc(options);
